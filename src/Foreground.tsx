@@ -6,85 +6,102 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Circle,
-  RadialGradient,
-  Stop,
-  Svg,
-  Text as SVGText,
-  G,
-  Path,
-  Ellipse,
-  ClipPath,
-  Mask,
-  Defs,
-  Use,
-} from "react-native-svg";
 import Animated, {
-  AnimatedSensor,
-  Extrapolation,
-  ValueRotation,
-  interpolate,
   useAnimatedProps,
+  useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { ClipPath, Rect, Svg, Text as SVGText } from "react-native-svg";
 import ForegroundSVG from "../assets/foreground.svg";
+import { Sensor, Status } from "./types";
+import { Shine } from "./Shine";
 import { useEffect } from "react";
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle)
-const AnimatedUse = Animated.createAnimatedComponent(Use)
+const RECT_WIDTH = 120;
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
-export const Foreground = (props: {
-  rotation: AnimatedSensor<ValueRotation>;
-}) => {
+export const Foreground = (props: { sensor: Sensor; status: Status }) => {
   const window = useWindowDimensions();
   const inset = useSafeAreaInsets();
-  const aprops = useAnimatedProps(() => {
-    const { pitch, roll } = props.rotation.sensor.value;
+  const scale = useSharedValue(1);
+  const rect = useSharedValue(-RECT_WIDTH);
+  const animatedStyle = useAnimatedStyle(() => {
+    const { pitch, roll } = props.sensor.value;
+    const translateY =
+      props.status === "video" ? 0 : withSpring(pitch * 15, { damping: 120 });
+    const translateX =
+      props.status === "video" ? 0 : withSpring(roll * 15, { damping: 120 });
+
     return {
-      cx: interpolate(roll, [1.5, -1.5], [0, 1284]),
-      cy: interpolate(pitch - 0.5, [1, -1], [0, 2778], Extrapolation.CLAMP),
+      transform: [
+        {
+          scale: scale.value,
+        },
+        { translateX },
+        { translateY },
+      ],
+    };
+  });
+  const animateRect = useAnimatedProps(() => {
+    return {
+      x: rect.value,
+    };
+  });
+
+  useEffect(() => {
+    if (props.status === "animating") {
+      scale.value = withSequence(
+        withTiming(1.2, { duration: 1000 }),
+        withTiming(1, { duration: 500 }),
+        withTiming(10, { duration: 1500 })
+      );
+    } else if (props.status === "title") {
+      rect.value = withTiming(0, { duration: 2000 });
+    } else if (props.status === "idle") {
+      scale.value = 1.05;
+    } else if (props.status === "video") {
+      scale.value = 0;
     }
-  })
+  }, [props.status]);
 
   return (
-    <View style={[s.expand, StyleSheet.absoluteFill]}>
+    <Animated.View style={[s.expand, StyleSheet.absoluteFill, animatedStyle]}>
       <ForegroundSVG width={window.width} height={window.height} />
-
-      <Svg viewBox="0 0 1284 2778" style={{ position: "absolute" }}>
-        <Defs>
-          <AnimatedCircle id="shape" r="1200" animatedProps={aprops} />
-          <RadialGradient id="gradient">
-            <Stop offset="10%" stopColor="white" />
-            <Stop offset="90%" stopColor="black" />
-          </RadialGradient>
-          <Mask id="mask">
-            <Use href="#shape" fill="url(#gradient)" />
-          </Mask>
-        </Defs>
-
-        <ClipPath id="clip">
-          <G>
-            <Path d="M1284 0v2778H0V0h1284ZM235 1634c10.196 381.348 188.994 685 407.5 685s397.304-303.652 407.5-685v-364c0-397.369-182.444-720-407.5-720S235 872.631 235 1270v364Z"></Path>
-          </G>
-        </ClipPath>
-
-        <Use href="#shape" fill="#fff" clipPath="#clip" opacity={0.10} />
-      </Svg>
+      <Shine {...props} />
 
       <View style={StyleSheet.absoluteFill}>
         <View
-          style={[s.banner, { borderBottomWidth: 4, marginTop: inset.top }]}
+          style={[
+            s.banner,
+            { borderBottomWidth: 4, marginTop: inset.bottom + 10, height: 80 },
+          ]}
         >
-          <Text style={[s.title, { fontSize: 38, fontWeight: "bold" }]}>
-            Chuck norris
-          </Text>
+          <Svg viewBox={`0 -5 ${RECT_WIDTH} 8`} height={"100%"} width={"100%"}>
+            <ClipPath id="clip">
+              <AnimatedRect
+                width="100%"
+                height="100"
+                y="-50"
+                animatedProps={animateRect}
+              />
+            </ClipPath>
+
+            <SVGText
+              fontSize={16}
+              fontWeight={"bold"}
+              fill="#fff"
+              clipPath="#clip"
+            >
+              Chuck Norris
+            </SVGText>
+          </Svg>
         </View>
         <View style={[s.expand, { justifyContent: "flex-end" }]}>
           <Svg
-            viewBox={`-4 -24 200 200`}
+            viewBox={`-6 -28 200 200`}
             style={{
               width: window.width,
               height: window.width,
@@ -116,7 +133,7 @@ export const Foreground = (props: {
           </Text>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
