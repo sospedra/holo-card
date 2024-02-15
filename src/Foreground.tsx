@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   Platform,
   StyleSheet,
@@ -15,10 +16,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { ClipPath, Rect, Svg, Text as SVGText } from "react-native-svg";
-import ForegroundSVG from "../assets/foreground.svg";
 import { Sensor, Status } from "./types";
 import { Shine } from "./Shine";
-import { useEffect } from "react";
+import { Frame } from "./Frame";
 
 const RECT_WIDTH = 120;
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -69,7 +69,7 @@ export const Foreground = (props: { sensor: Sensor; status: Status }) => {
 
   return (
     <Animated.View style={[s.expand, StyleSheet.absoluteFill, animatedStyle]}>
-      <ForegroundSVG width={window.width} height={window.height} />
+      <Frame width={window.width} height={window.height} />
       <Shine {...props} />
 
       <View style={StyleSheet.absoluteFill}>
